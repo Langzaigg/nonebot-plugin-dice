@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nonebot-plugin-dice"
+version = "2.7.1"
+description = "Dice! 的 NoneBot2 轻量化实现：TRPG 掷骰 / 检定 / 人物卡 / 规则速查 / 牌堆"
+readme = "README.md"
+license = { text = "AGPL-3.0-or-later" }
+authors = [{ name = "Langzaigg" }]
+requires-python = ">=3.9"
+keywords = ["nonebot", "nonebot2", "dice", "trpg", "coc", "跑团", "骰子"]
+classifiers = [
+    "Framework :: NoneBot",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Games/Entertainment :: Role-Playing",
+]
+dependencies = [
+    "nonebot2>=2.0.0",
+    "httpx>=0.24",
+    "pyyaml>=6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Langzaigg/nonebot-plugin-dice"
+Repository = "https://github.com/Langzaigg/nonebot-plugin-dice"
+Upstream = "https://github.com/Dice-Developer-Team/Dice"
+
+[tool.setuptools]
+packages = ["nonebot_plugin_dice"]
+
+[tool.nonebot]
+plugin_name = "nonebot_plugin_dice"
+plugins = ["nonebot_plugin_dice"]
