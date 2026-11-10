@@ -671,6 +671,9 @@ def _setcoc(e: DiceEvent) -> int:
 # ------------------------------------------------------------------- .system
 def _system(e: DiceEvent) -> int:
     """控制台指令的本地版：只保留配置重载与强制存盘（对应原版 .system load / save）。"""
+    if not e.is_master:
+        e.reply_msg("strPermissionDeniedErr")
+        return 1
     opt = e.read_para()
     if opt == "save":
         store.flush_all()
@@ -960,7 +963,7 @@ def _nnn(e: DiceEvent) -> int:
 
 # ------------------------------------------------------------ .deck / .draw
 async def _deck(e: DiceEvent, bot) -> int:
-    if e.trusted < 4 and settings.disabled_deck:
+    if not e.is_master and settings.disabled_deck:
         e.reply_msg("strDisabledDeckGlobal")
         return 1
     if e.cnt >= len(e.msg):
@@ -974,7 +977,7 @@ async def _deck(e: DiceEvent, bot) -> int:
         else:
             e.reply_msg("strDeckListEmpty")
         return 1
-    if not e.can_host and not e.trusted:
+    if not e.can_host:
         e.reply_msg("strWhiteQQDenied")
         return 1
     if para == "new":
@@ -1153,7 +1156,7 @@ def _deck_del(e: DiceEvent, game):
 
 
 def _draw(e: DiceEvent) -> int:
-    if e.trusted < 4 and settings.disabled_draw:
+    if not e.is_master and settings.disabled_draw:
         e.reply_msg("strDisabledDrawGlobal")
         return 1
     e.ctx["option"] = "禁用draw"
@@ -1518,7 +1521,7 @@ def _li(e: DiceEvent) -> int:
 
 # ---------------------------------------------------------------------- .me
 async def _me(e: DiceEvent, bot) -> int:
-    if settings.disabled_me and e.trusted < 4:
+    if settings.disabled_me and not e.is_master:
         e.reply_msg("strDisabledMeGlobal")
         return 1
     e.skip_space()
@@ -1528,7 +1531,7 @@ async def _me(e: DiceEvent, bot) -> int:
             e.reply_msg("strGroupIDEmpty")
             return 1
         gid = int(gid_str)
-        if (store.group_opt(gid, "停用指令") or store.group_opt(gid, "禁用me")) and e.trusted < 5:
+        if (store.group_opt(gid, "停用指令") or store.group_opt(gid, "禁用me")) and not e.is_master:
             e.reply_msg("strMEDisabledErr")
             return 1
         e.skip_space()
@@ -1536,7 +1539,7 @@ async def _me(e: DiceEvent, bot) -> int:
         if not action:
             e.reply_msg("strActionEmpty")
             return 1
-        text = (get_name(e.uid, gid, e.self_id, e.self_name) if e.trusted > 4 else "") + action
+        text = (get_name(e.uid, gid, e.self_id, e.self_name) if e.is_master else "") + action
         try:
             await bot.send_group_msg(group_id=gid, message=text)
         except Exception:
@@ -1568,7 +1571,7 @@ async def _me(e: DiceEvent, bot) -> int:
     if not action:
         e.reply_msg("strActionEmpty")
         return 1
-    if e.trusted > 4:
+    if e.is_master:
         e.reply(action, False)
     else:
         e.reply(idx_pc(e.ctx) + action, False)
@@ -2427,8 +2430,8 @@ def _st(e: DiceEvent) -> int:
             continue
         if e.cnt != len(e.lower) and not e.peek_lower().isdigit() and e.peek() not in (" ", "\t"):
             val = e.read_until_space()
-            if e.trusted <= 0:
-                val = filter_cqcode(val)
+            # 原版对 trust<=0 的用户过滤 CQ 码（防注入）；本移植不做信任分级，一律过滤
+            val = filter_cqcode(val)
             if pc.set(attr_name, val) == 0:
                 trans["action"] = "->" if has_old else ":"
                 trans["new"] = val

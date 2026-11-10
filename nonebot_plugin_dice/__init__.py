@@ -128,9 +128,60 @@ async def _rule(event: MessageEvent) -> bool:
 dice_matcher = on_message(rule=Rule(_rule), priority=1, block=False)
 
 
-async def _can_host(bot: Bot, event: MessageEvent, trusted: int) -> bool:
-    """权限管理已移除：群内设置类指令不再做身份校验。"""
-    return True
+def _superusers() -> set:
+    """NoneBot 全局主人（`SUPERUSERS`），对应原版的 Master / 高信任用户。"""
+    global _SUPERUSERS
+    if _SUPERUSERS is None:
+        users = set()
+        try:
+            from nonebot import get_driver
+            raw = getattr(get_driver().config, "superusers", None) or set()
+            users = {int(u) for u in raw if str(u).lstrip("-").isdigit()}
+        except Exception:
+            users = set()
+        _SUPERUSERS = users
+    return _SUPERUSERS
+
+
+_SUPERUSERS = None
+_ROLE_CACHE: dict = {}
+_ROLE_TTL = 300
+
+
+async def _group_role(bot: Bot, event: GroupMessageEvent) -> str:
+    """取发言者在群里的身份；事件没带 role 时查一次成员信息并缓存。"""
+    role = getattr(getattr(event, "sender", None), "role", "") or ""
+    if role:
+        return role
+    key = (int(event.group_id), int(event.user_id))
+    hit = _ROLE_CACHE.get(key)
+    now = time.time()
+    if hit and now - hit[1] < _ROLE_TTL:
+        return hit[0]
+    try:
+        info = await bot.get_group_member_info(
+            group_id=int(event.group_id), user_id=int(event.user_id), no_cache=False)
+        role = str((info or {}).get("role", "") or "")
+    except Exception:
+        role = ""
+    _ROLE_CACHE[key] = (role, now)
+    return role
+
+
+async def _can_host(bot: Bot, event: MessageEvent, is_master: bool) -> bool:
+    """对应原版 `DiceEvent::canRoomHost()`。
+
+    原式：`trusted > 3 || isChannel() || isPrivate() || isGroupAdmin() || inviter == uid`。
+    本移植：主人（NoneBot `SUPERUSERS`）或群主/管理员放行，私聊恒真；
+    不引入信任分级，也不记邀请人（原版靠它给拉骰娘进群的人临时权限）。
+    """
+    if is_master:
+        return True
+    if isinstance(event, PrivateMessageEvent):
+        return True
+    if not isinstance(event, GroupMessageEvent):
+        return False
+    return await _group_role(bot, event) in ("owner", "admin")
 
 
 def _to_message(text: str) -> Message:
@@ -188,9 +239,9 @@ async def _handle(bot: Bot, event: MessageEvent):
         nick=(store.nick(uid, gid) or card or nick or str(uid)),
         self_id=plugin_config.dice_maid_qq or int(event.self_id),
         self_name=_self_name(),
-        trusted=store.trust(uid),
         can_host=False,
         is_private=is_private,
+        is_master=uid in _superusers(),
     )
     e.ctx["nick"] = e.nick
     e.ctx["master"] = settings.master
@@ -214,9 +265,9 @@ async def _handle(bot: Bot, event: MessageEvent):
         return
 
     try:
-        e.can_host = await _can_host(bot, event, e.trusted)
+        e.can_host = await _can_host(bot, event, e.is_master)
     except Exception:
-        e.can_host = is_private
+        e.can_host = e.is_master or is_private
 
     handled = 0
     try:

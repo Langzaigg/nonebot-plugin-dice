@@ -86,7 +86,7 @@
 | `.name [类型] [数量]` | ✅ | `随机姓名_<类型>` 子牌堆优先，`1-10` 数量限制，`、` 分隔 |
 | `.nnn [类型]` | ✅ | 随机称呼并写入当前窗口 |
 | 牌堆文本展开 | ✅ | `{牌堆}` 嵌套、`{%牌堆}` 可放回、`[1d6]` 内嵌掷骰、`\` 转义 |
-| 公共牌堆数据 | ⚠️ | 源码包未附 `PublicDeck/*.json`，改为 `data/dice/decks.yml`；内置最小示例（随机姓名/性别/职业/背景词条），可自行补齐 |
+| 公共牌堆数据 | ✅ | 三个来源，后者覆盖前者：代码内置（`DEFAULT_DECKS`）→ `data/dice/PublicDeck/*.json`（**原版牌堆包可直接拷进来**，格式 `{"牌堆名": ["卡面", ...]}`，多文件合并）→ `data/dice/decks.yml`（本地配置，优先级最高） |
 
 ## 6. 游戏桌 / 旁观 / 日志 / 安科 / 先攻
 
@@ -207,7 +207,7 @@ data/dice/
 ## 10. 已知差异（有意为之）
 
 1. **随机源**：原版 `mt19937(rdtsc)`，本移植用 Python `random`（Mersenne Twister）。分布一致，序列不可比；所有概率公式、取整方向、展示格式保持原样。
-2. **权限**：无 trust/master/admin 体系，`can_host` 恒为真；因此任何群成员都能用 `.bot off`、`.setcoc`、`.game new` 等（原版要求群管理或信任）。
+2. **权限改用 NoneBot 生态的字段**：原版 `canRoomHost()` = `trusted>3 || isChannel || isPrivate || isGroupAdmin || inviter==uid`。本移植改成 `NoneBot SUPERUSERS（主人） || 群主/管理员 || 私聊`，不做信任分级、不记邀请人、不主动退群/入群。因此群内开关（`.bot` / `.help` / `.jrrp` / `.me` / `.deck` / `.setcoc` / `.game new` 等）要群管理或主人才能用。
 3. **昵称**：原版会实时查 QQ 昵称；本移植只用事件里的群名片/昵称与本地缓存，未知用户回落 `陌生人[QQ]`。
 4. **日志重传节奏**：原版失败后 2 分钟重试，共 3 次；本移植 3 秒重试，避免长时间占用会话。
 5. **`{list_extern_deck}` / `{list_reply_deck}` / `{list_dice_sister}`**：返回空（mod、自定义回复、姐妹骰未复刻）；`{list_all_deck}` 正常返回 `decks.yml` 里的牌堆名。

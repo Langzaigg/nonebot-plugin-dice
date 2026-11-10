@@ -140,13 +140,26 @@ decks:
   俄罗斯轮盘: ["有弹", "::5::无弹"]
 ```
 
+### `data/dice/PublicDeck/*.json`
+
+原版 Dice! 的牌堆包格式，**可以直接把原版的 `PublicDeck` 目录拷进来**：
+每个 json 是 `{"牌堆名": ["卡面", ...]}`，多个文件合并。
+
+同名牌堆的优先级：`decks.yml` > `PublicDeck/*.json` > 代码内置。
+
+仓库里的 [`examples/PublicDeck/塔罗.json`](examples/PublicDeck/塔罗.json) 是一份 78 张全套塔罗牌范例
+（含 22 张大阿卡纳、56 张小阿卡纳、花色 / 牌阵 / 权重示例），拷贝到
+`data/dice/PublicDeck/` 后 `.system load` 即可 `.draw 塔罗 3`。用法与牌面语法见
+[`examples/README.md`](examples/README.md)。
+
 ### 数据目录
 
 ```
 data/dice/
 ├── config.yml          # 全局开关
 ├── messages.yml        # 自定义文本 / 帮助
-├── decks.yml           # 公共牌堆
+├── decks.yml           # 公共牌堆（本地配置）
+├── PublicDeck/*.json   # 原版牌堆包（可选，文件名随意）
 ├── users.json          # 用户：称呼、个人配置、jrrp 兜底
 ├── players.json        # 角色卡
 ├── chats.json          # 群记录：群名、群选项、房规
@@ -154,6 +167,20 @@ data/dice/
 ├── session/*.json      # 游戏桌（牌堆实例、轮盘、日志状态）
 └── log/*.txt           # 跑团日志正文
 ```
+
+### 权限
+
+复用 NoneBot 生态已有的字段，不额外维护信任表：
+
+| 身份 | 来源 | 能做什么 |
+| --- | --- | --- |
+| 主人 | NoneBot `SUPERUSERS` | 全部指令，含 `.system load/save`；不受全局 `disabled_*` 与群内禁用影响 |
+| 群主 / 管理员 | OneBot 事件的 `sender.role` | 群内开关：`.bot on/off`、`.help on/off`、`.jrrp on/off`、`.me on/off`、`.deck`、`.setcoc`、`.game new`、`.ob on/off/clr` 等 |
+| 普通成员 | — | 掷骰、检定、人物卡、`.jrrp`、`.draw`、`.ob join` 等日常指令 |
+
+私聊不设限（操作范围只有自己）。原版的信任分级（trust 0-5）、邀请人临时权限、
+`.authorize`/`.dismiss` 那套不做。`config.yml` 里的 `master` 仅用于文案展示，
+真正的权限判定只看 `SUPERUSERS`。
 
 ---
 
@@ -197,12 +224,14 @@ data/dice/
 
 完整清单见 [`docs/migration.md`](docs/migration.md)，主要几处：
 
-1. **无权限体系**：原版按 `trust` 分级（Master / 信任用户 / 普通用户），本移植版不做权限校验，
-   群内设置类指令（`.bot off`、`.setcoc`、`.game new` 等）任何成员都能使用。
+1. **权限用 NoneBot 的字段**：原版按 `trust` 分级（Master / 信任用户 / 普通用户），并要求群管理；
+   本移植只认 `SUPERUSERS`（主人）与群主/管理员，群内开关类指令普通成员发不动，
+   但不做信任分级、不记邀请人、不主动退群/入群。
 2. **随机源不同**：原版 `mt19937(rdtsc)`，本版 Python `random`。概率公式、取整方向、展示格式一致，
    序列不可比。
-3. **牌堆数据**：原版 `PublicDeck/*.json` 未随源码分发，本版内置最小示例牌堆（随机姓名、
-   性别、调查员职业等），可在 `decks.yml` 中自行补齐。
+3. **牌堆数据**：原版的 `PublicDeck/*.json` 可以直接复用（`data/dice/PublicDeck/`，
+   见 [`examples/`](examples/) 里的塔罗范例）；另外内置了一小套保底牌堆（随机姓名、
+   性别、调查员职业等），不够可在 `decks.yml` 里补。
 4. **昵称**：只使用事件中的群名片/昵称与本地缓存，未知用户回落 `陌生人[QQ]`。
 5. **原版缺陷已修正**（不再追求 1:1 复制 bug）：`.coc6` 的死代码、`.rc 力量-10` 负修正不生效、
    `.ww 3#10a8` 多轮结果重复、`.ww [骰池] 原因` 里 `{reason}` 不替换、`.help 房规` 内嵌整条

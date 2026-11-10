@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-"""牌堆：公共牌堆 yml + 牌面展开，对应 CardDeck.cpp。"""
+"""牌堆：公共牌堆 yml / 原版 PublicDeck 牌堆包 + 牌面展开，对应 CardDeck.cpp。"""
 
+import json
 import random
 import re
 from typing import Dict, List, Optional
@@ -64,11 +65,18 @@ DEFAULT_DECKS = {
 
 
 class DeckStore:
-    """公共牌堆，来源 data/dice/decks.yml。"""
+    """公共牌堆。
+
+    三个来源，后者覆盖前者：
+      1. `DEFAULT_DECKS`（代码内置，保证 .name / .pc 有牌可用）
+      2. `data/dice/PublicDeck/*.json`（原版 Dice! 的牌堆包，可直接拷贝过来）
+      3. `data/dice/decks.yml`（本移植的本地配置，优先级最高）
+    """
 
     def __init__(self):
         self._decks: Dict[str, List[str]] = {}
         self._path = store.dir / "decks.yml"
+        self._public_dir = store.dir / "PublicDeck"
 
     def load(self):
         """启动时加载一次；改完牌堆后用 .system load 重载。"""
@@ -76,12 +84,15 @@ class DeckStore:
             self._path.stat()
         except OSError:
             self._write_default()
+        decks: Dict[str, List[str]] = {k: list(v) for k, v in DEFAULT_DECKS.items()}
+        # 原版牌堆包：同名时覆盖内置，但让位给 decks.yml
+        for name, cards in self._load_public().items():
+            decks[name] = cards
         try:
             with self._path.open("r", encoding="utf-8") as f:
                 data = yaml.safe_load(f) or {}
         except Exception:
             data = {}
-        decks: Dict[str, List[str]] = {}
         raw = data.get("decks") if isinstance(data, dict) else None
         if isinstance(raw, dict):
             for name, cards in raw.items():
@@ -89,9 +100,46 @@ class DeckStore:
                     decks[str(name)] = [str(c) for c in cards]
                 elif isinstance(cards, str):
                     decks[str(name)] = [line.strip() for line in cards.splitlines() if line.strip()]
-        if not decks:
-            decks = {k: list(v) for k, v in DEFAULT_DECKS.items()}
         self._decks = decks
+
+    def _load_public(self) -> Dict[str, List[str]]:
+        """读取原版格式的牌堆包。
+
+        对应 `Dice.cpp` 的 `loadDir(loadJMap, DiceDir / "PublicDeck", ...)`：
+        目录下每个 `.json` 文件都是 `{"牌堆名": ["卡面", ...]}`，多文件合并、
+        后读到的覆盖先读到的（这里按文件名排序保证顺序固定）。
+        解析不了的文件直接跳过，不影响其他牌堆。
+        """
+        out: Dict[str, List[str]] = {}
+        if not self._public_dir.is_dir():
+            return out
+        try:
+            files = sorted(
+                (p for p in self._public_dir.iterdir()
+                 if p.is_file() and not p.name.startswith(".")
+                 and p.suffix.lower() == ".json"),
+                key=lambda p: p.name,
+            )
+        except OSError:
+            return out
+        for path in files:
+            try:
+                with path.open("r", encoding="utf-8-sig") as f:
+                    data = json.load(f)
+            except Exception:
+                continue
+            if not isinstance(data, dict):
+                continue
+            for name, cards in data.items():
+                if isinstance(cards, list):
+                    vals = [str(c) for c in cards if c is not None]
+                elif isinstance(cards, str):
+                    vals = [ln.strip() for ln in cards.splitlines() if ln.strip()]
+                else:
+                    continue
+                if vals:
+                    out[str(name)] = vals
+        return out
 
     def _write_default(self):
         try:
@@ -100,6 +148,8 @@ class DeckStore:
                 f.write("# 格式：decks 下每个键为牌堆名，值为牌面列表；\n")
                 f.write("#   - 用 {牌堆名} 可嵌套抽取；用 [1d6] 可内嵌掷骰；\n")
                 f.write("#   - 卡面写成 内容::权重::内容 表示抽取权重。\n")
+                f.write("# 同名牌堆优先级：本文件 > PublicDeck/*.json > 代码内置。\n")
+                f.write("# 原版 Dice! 的牌堆包（{ \"牌堆名\": [\"卡面\"] } 的 json）可直接放进 PublicDeck/ 目录。\n")
                 yaml.safe_dump({"decks": DEFAULT_DECKS}, f, allow_unicode=True, sort_keys=False)
         except OSError:
             pass

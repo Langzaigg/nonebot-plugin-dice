@@ -16,7 +16,8 @@ _WS = " \t\r\n\v\f"
 class DiceEvent:
     def __init__(self, msg: str, uid: int = 0, gid: int = 0, nick: str = "",
                  self_id: int = 0, self_name: str = "", trusted: int = 0,
-                 can_host: bool = False, is_private: bool = True):
+                 can_host: bool = False, is_private: bool = True,
+                 is_master: bool = False):
         self.msg = msg
         self.lower = msg.lower()
         self.cnt = 0
@@ -28,6 +29,7 @@ class DiceEvent:
         self.self_name = self_name or get_msg_text("strSelfName") or "骰娘"
         self.trusted = trusted
         self.can_host = can_host
+        self.is_master = is_master
         self.is_private = is_private or not gid
         self.hidden = False
         self.replies: List[str] = []
