@@ -25,7 +25,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
 }
 
 CONFIG_HEADER = """# Dice! 本地配置（替代原 WebUI 管理面板）
-# 修改后无需重启，下一条消息会自动热加载。
+# 本文件在启动时读取一次；改完生效需执行 .system load（无需重启）。
 #
 # self_name          骰娘自称，留空则用 bot 昵称
 # master             Master 的 QQ（仅用于展示；本移植版不做权限控制）
@@ -54,8 +54,6 @@ class Settings:
         self.config: Dict[str, Any] = dict(DEFAULT_CONFIG)
         self._msg_base = dict(constants.GLOBAL_MSG)
         self._help_base = dict(constants.GLOBAL_HELP)
-        self._config_mtime = -1.0
-        self._messages_mtime = -1.0
 
     # ------------------------------------------------------------------ 文件
     @property
@@ -76,20 +74,18 @@ class Settings:
         except OSError:
             pass
 
-    def reload_if_stale(self):
+    def load(self):
+        """启动时加载一次；之后只有 .system load 会重新读取。
+
+        刻意不在消息热路径上做 mtime 探测：每来一条消息 stat 两个文件虽不算重，
+        但在高活跃群里属于无意义的系统调用。
+        """
         self._load_config()
         self._load_messages()
 
     def _load_config(self):
         path = self.config_path
         self._ensure(path, CONFIG_HEADER, DEFAULT_CONFIG)
-        try:
-            mtime = path.stat().st_mtime
-        except OSError:
-            return
-        if mtime == self._config_mtime:
-            return
-        self._config_mtime = mtime
         try:
             with path.open("r", encoding="utf-8") as f:
                 data = yaml.safe_load(f) or {}
@@ -105,13 +101,6 @@ class Settings:
     def _load_messages(self):
         path = self.messages_path
         self._ensure(path, MESSAGES_HEADER, {"messages": {}, "help": {}})
-        try:
-            mtime = path.stat().st_mtime
-        except OSError:
-            return
-        if mtime == self._messages_mtime:
-            return
-        self._messages_mtime = mtime
         try:
             with path.open("r", encoding="utf-8") as f:
                 data = yaml.safe_load(f) or {}
@@ -159,3 +148,4 @@ class Settings:
 
 
 settings = Settings()
+settings.load()

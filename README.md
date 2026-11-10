@@ -22,9 +22,10 @@ Dice! 是一款经典的 TRPG 掷骰机器人，支持 COC/DND 掷骰、技能�
 
 - 只依赖 `nonebot2` + `httpx` + `pyyaml`，无需编译；
 - 所有指令在**一个 matcher** 内分发，命中指令后阻断后续插件，未命中则完全放行；
-- 原版需要 WebUI 才能维护的内容（牌堆、自定义文本、全局开关）改为**本地 yml 文件**，改完即热加载。
+- 原版需要 WebUI 才能维护的内容（牌堆、自定义文本、全局开关）改为**本地 yml 文件**，启动时读取一次，
+  改完执行 `.system load` 重载（不逐条消息扫盘）。
 
-论坛: <https://forum.kokona.tech>
+论坛: <https://forum.tuchan.tech>
 
 ---
 
@@ -48,7 +49,11 @@ Dice! 是一款经典的 TRPG 掷骰机器人，支持 COC/DND 掷骰、技能�
 头衔 / 潜水成员）、`.groups`、`.admin`、`.master`、`.user`（信任级别）、`.authorize`、
 `.dismiss`、`.welcome`、`.system` 控制台、`.cloud`、`.mod`、`.reply`、`.str`、`.link`、`.send`。
 
+这些指令**不会出现在 `.help` 里**：帮助索引在启动时剔除对应词条，`.help 群管` 会直接回
+「未找到相关词条」，`.help` 主页面也不再列出 `.dismiss` / `.help群管`。
+
 > 功能开关保留：`.bot on/off`（插件总开关）、`.help on/off`、`.jrrp on/off`、`.me on/off`。
+> 控制台只保留 `.system load`（重读 yml）与 `.system save`（强制落盘）。
 
 详细的指令级迁移对照、响应文案来源与已知差异见 [`docs/migration.md`](docs/migration.md)。
 
@@ -90,7 +95,7 @@ plugins = ["nonebot_plugin_dice"]
 | `DICE_PREFIX` | `[".", "!", "。", "！", "．"]` | 触发前缀 |
 | `DICE_LISTEN_AT` | `true` | 是否响应 @ 骰娘 的消息 |
 
-首次运行会自动生成三个本地配置文件（**替代原版 WebUI**，修改后下一条消息即生效）：
+首次运行会自动生成三个本地配置文件（**替代原版 WebUI**；启动时读一次，改完执行 `.system load` 生效）：
 
 ### `data/dice/config.yml`
 
@@ -175,6 +180,9 @@ data/dice/
 「规则数据获取失败 + 具体原因」。日志上传失败会重试 3 次后提示失败原因，日志文件仍会
 先直接发送到群/私聊，不会丢。
 
+> 上方域名是 Dice! 官方服务端点，即使本项目对外文案已改用 `tuchan` 品牌也不会替换——
+> 换成其他域名会直接导致 `.jrrp` / `.rules` / 日志上传失败。
+
 ---
 
 ## 与原版的差异
@@ -188,12 +196,15 @@ data/dice/
 3. **牌堆数据**：原版 `PublicDeck/*.json` 未随源码分发，本版内置最小示例牌堆（随机姓名、
    性别、调查员职业等），可在 `decks.yml` 中自行补齐。
 4. **昵称**：只使用事件中的群名片/昵称与本地缓存，未知用户回落 `陌生人[QQ]`。
-5. 保留了原版的若干既有行为（含缺陷），例如 `.r 100` 会把数字当作掷骰原因、`.rc 力量-10`
-   的负修正在上游本就不生效——为保持 1:1 未做「修正」。
+5. **原版缺陷已修正**（不再追求 1:1 复制 bug）：`.coc6` 的死代码、`.rc 力量-10` 负修正不生效、
+   `.ww 3#10a8` 多轮结果重复、`.ww [骰池] 原因` 里 `{reason}` 不替换、`.help 房规` 内嵌整条
+   setcoc、`.help setcoc` 参数写成 0-6 等，清单见 `docs/migration.md` 第 11 节。
 
 ---
 
 ## 开发者
+
+本移植版：**langzaigg**（<https://github.com/Langzaigg/nonebot-plugin-dice>）
 
 原版 Dice! 贡献者：w4123溯洄、Shiki、jh123111、緋色月下、スイカを食う
 
@@ -207,9 +218,8 @@ data/dice/
 ## 相关链接
 
 - Dice! 主仓库：<https://github.com/Dice-Developer-Team/Dice>
-- Dice! 论坛：<https://forum.kokona.tech>
-- Dice! 手册：<https://docs.kokona.tech>
-- Dice! WebUI 说明：<https://forum.kokona.tech/d/721-dice-webui-shi-yong-shuo-ming>
+- Dice! 论坛：<https://forum.tuchan.tech>
+- Dice! 手册：<https://v2docs.tuchan.tech>
 - NoneBot2 文档：<https://nonebot.dev>
 
 ## License

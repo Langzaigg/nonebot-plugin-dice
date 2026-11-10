@@ -611,6 +611,9 @@ class DicePool(RD):
             return self.err
         if not self.nDiceCnt:
             return ZERO_DICE_ERR
+        # 原版 roll() 会把 nDiceCnt 一路消费到 0，于是 .ww 3#10a8 从第二遍起直接
+        # 返回 ZeroDice_Err（调用方不看返回值），三行输出完全一样。此处用完即还。
+        total_dice = self.nDiceCnt
         self.vvintRes.clear()
         self.vintRes.clear()
         self.vboolNegative.clear()
@@ -640,6 +643,7 @@ class DicePool(RD):
             self.vintRes.append(abs(self.nExtraVal))
             self.vboolNegative.append(self.nExtraVal < 0)
         self.vBnP = [WW_DICE] * len(self.vvintRes)
+        self.nDiceCnt = total_dice
         return 0
 
     def FormStringSeparate(self) -> str:

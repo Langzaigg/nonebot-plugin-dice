@@ -286,7 +286,7 @@ async def _game(e: DiceEvent, bot) -> int:
         game = sessions.get(e.gid, e.uid)
         e.game = game
         if not game.is_gm(e.uid):
-            if e.can_host if not game.master else e.can_host:
+            if e.can_host:
                 game.add_gm(e.uid)
                 e.reply_msg("strGameMastered")
             else:
@@ -441,8 +441,11 @@ async def inner_order(e: DiceEvent, bot) -> int:
     if lower[n:n + 6] == "setcoc":
         e.cnt += 6
         return _setcoc(e)
-    if lower[n:n + 6] in ("groups", "system") or lower[n:n + 5] in ("admin", "cloud"):
-        return 0  # 群管 / 控制台：不复刻
+    if lower[n:n + 6] == "system":
+        e.cnt += 6
+        return _system(e)
+    if lower[n:n + 6] == "groups" or lower[n:n + 5] in ("admin", "cloud"):
+        return 0  # 群管 / 权限 / 云黑：不复刻
     if lower[n:n + 5] in ("coc7d", "coc6d") or lower[n:n + 4] == "cocd":
         if lower[n:n + 4] == "cocd":
             e.cnt += 4
@@ -456,7 +459,8 @@ async def inner_order(e: DiceEvent, bot) -> int:
         e.reply_msg("strCOCBuild")
         return 1
     if lower[n:n + 5] == "group":
-        return 0  # 群管：不复刻    if lower[n:n + 4] == "coc6":
+        return 0  # 群管：不复刻
+    if lower[n:n + 4] == "coc6":
         e.cnt += 4
         if e.peek_lower() == "s":
             e.cnt += 1
@@ -662,6 +666,22 @@ def _setcoc(e: DiceEvent) -> int:
     else:
         store.set_group_rule(e.gid, rule)
     return 1
+
+
+# ------------------------------------------------------------------- .system
+def _system(e: DiceEvent) -> int:
+    """控制台指令的本地版：只保留配置重载与强制存盘（对应原版 .system load / save）。"""
+    opt = e.read_para()
+    if opt == "save":
+        store.flush_all()
+        e.reply("已手动保存{self}的数据√")
+        return 1
+    if opt == "load":
+        settings.load()
+        decks.load()
+        e.reply("已手动加载{self}的配置√")
+        return 1
+    return 0
 
 
 # -------------------------------------------------------------------- .init
@@ -1973,8 +1993,13 @@ def _rc(e: DiceEvent) -> int:
         if st != 0:
             skill_multiple = 1
     while e.peek_lower() in ("+", "-") and e.peek(1).isdigit():
-        st, skill_modify = e.read_num(skill_modify)
+        # 原版这里没吃掉符号，read_num 见到前导 '-' 直接返回 -3，
+        # 于是 .rc 敏捷-10（帮助文档里写明的用法）恒不生效。此处显式取符号。
+        sign = -1 if e.peek_lower() == "-" else 1
+        e.cnt += 1
+        st, delta = e.read_num(skill_modify)
         if st == 0:
+            skill_modify = sign * delta
             skill_text = ("+%d" % skill_modify) if skill_modify > 0 else str(skill_modify)
     if e.peek_lower() == "/" and e.peek(1).isdigit():
         e.cnt += 1
@@ -2490,7 +2515,10 @@ def _ww(e: DiceEvent) -> int:
     if pc is not None:
         while e.cnt < len(e.msg) and e.peek() not in (" ", "\t", "\u3000"):
             c = e.peek()
-            if c.isdigit() or c in "a+-*/":
+            # '#' 是轮数分隔符，漏掉它会让 .ww 3#10a8（已有角色卡时）整段被当成属性名；
+            # 'd' 一并收进来，让 .ww 3d6 这类非法写法落到 DicePool 报「输入错误」，
+            # 而不是把 d 当属性名、剩下的 6 并进骰数变成 36D10。
+            if c.isdigit() or c in "a+-*/#dD":
                 main += c
                 e.cnt += 1
             elif c in "=:":
@@ -2567,6 +2595,7 @@ def _ww(e: DiceEvent) -> int:
         for _ in range(turn):
             pool.roll(game)
             e.ctx["res"] = pool.FormCompleteString() if detail else pool.FormShortString()
+            e.ctx["reason"] = reason
             text = get_msg_text("strRollDiceReason" if reason else "strRollDice")
             if hidden:
                 e.reply_hidden(text)

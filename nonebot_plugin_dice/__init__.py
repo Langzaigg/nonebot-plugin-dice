@@ -31,7 +31,7 @@ __plugin_meta__ = PluginMetadata(
     usage="发送 .help 查看指令列表；掷骰用 .r",
     type="application",
     config=Config,
-    extra={"author": "Dice! by 溯洄 & Shiki / port by ATRI", "version": "2.7.1beta1(668)"},
+    extra={"author": "langzaigg", "version": "2.7.1beta1(668)"},
 )
 
 plugin_config = get_plugin_config(Config)
@@ -41,7 +41,6 @@ AT_RE = re.compile("\x02at:([^\x02]*)\x02")
 
 def _self_name() -> str:
     from .settings import settings
-    settings.reload_if_stale()
     if settings.self_name:
         return settings.self_name
     if plugin_config.dice_self_name:
@@ -162,8 +161,6 @@ async def _handle(bot: Bot, event: MessageEvent):
     from .session import sessions
     from .settings import settings
     from .store import store
-
-    settings.reload_if_stale()
 
     text, summoned, other = _extract(event)
     is_private = isinstance(event, PrivateMessageEvent)

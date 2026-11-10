@@ -10,10 +10,34 @@ import yaml
 from .rd import RD
 from .store import store
 
-# 默认牌堆文件内容（首次运行自动生成；可直接编辑后热加载）
+# 默认牌堆文件内容（首次运行自动生成；改完执行 .system load 重载）
 DEFAULT_DECKS = {
     "随机姓名": [
         "{随机姓氏}{随机名字}",
+    ],
+    "随机姓名_cn": [
+        "{随机姓氏}{随机名字}",
+    ],
+    # .name jp / en / enzh 依赖后接类型名找「随机姓名_<类型>」，缺了会静默退回中文名
+    "随机姓名_jp": [
+        "佐藤健", "铃木结衣", "高桥阳一", "田中实", "伊藤沙耶", "渡边翔太",
+        "山本美咲", "中村大树", "小林葵", "加藤莲", "吉田悠斗", "山田结菜",
+        "佐佐木凑", "松本光", "井上遥", "木村奏", "林优真", "清水芽依",
+        "山口隼人", "森川凛",
+    ],
+    "随机姓名_en": [
+        "James Smith", "Mary Johnson", "Robert Brown", "Patricia Davis",
+        "Michael Miller", "Linda Wilson", "William Moore", "Elizabeth Taylor",
+        "David Anderson", "Barbara Thomas", "Richard Jackson", "Susan White",
+        "Joseph Harris", "Margaret Martin", "Thomas Thompson", "Dorothy Garcia",
+        "Charles Martinez", "Nancy Robinson", "Christopher Clark", "Karen Lewis",
+    ],
+    "随机姓名_enzh": [
+        "詹姆斯·史密斯", "玛丽·约翰逊", "罗伯特·布朗", "帕特丽夏·戴维斯",
+        "迈克尔·米勒", "琳达·威尔逊", "威廉·摩尔", "伊丽莎白·泰勒",
+        "大卫·安德森", "芭芭拉·托马斯", "理查德·杰克逊", "苏珊·怀特",
+        "约瑟夫·哈里斯", "玛格丽特·马丁", "托马斯·汤普森", "多萝西·加西亚",
+        "查尔斯·马丁内斯", "南希·罗宾逊", "克里斯托弗·克拉克", "凯伦·刘易斯",
     ],
     "随机姓氏": [
         "王", "李", "张", "刘", "陈", "杨", "赵", "黄", "周", "吴",
@@ -44,18 +68,14 @@ class DeckStore:
 
     def __init__(self):
         self._decks: Dict[str, List[str]] = {}
-        self._mtime = 0.0
         self._path = store.dir / "decks.yml"
 
-    def load(self, force: bool = False):
+    def load(self):
+        """启动时加载一次；改完牌堆后用 .system load 重载。"""
         try:
-            mtime = self._path.stat().st_mtime
+            self._path.stat()
         except OSError:
             self._write_default()
-            mtime = 0.0
-        if not force and mtime and mtime == self._mtime:
-            return
-        self._mtime = mtime
         try:
             with self._path.open("r", encoding="utf-8") as f:
                 data = yaml.safe_load(f) or {}
@@ -86,7 +106,6 @@ class DeckStore:
 
     @property
     def decks(self) -> Dict[str, List[str]]:
-        self.load()
         return self._decks
 
     def get(self, name: str) -> Optional[List[str]]:
@@ -219,3 +238,4 @@ def draw_text(exp: str) -> str:
 
 
 decks = DeckStore()
+decks.load()
