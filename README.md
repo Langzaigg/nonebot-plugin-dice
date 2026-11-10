@@ -61,14 +61,22 @@ Dice! 是一款经典的 TRPG 掷骰机器人，支持 COC/DND 掷骰、技能�
 
 ## 安装
 
+本插件尚未发布到 PyPI，请从仓库直接安装：
+
 ```bash
-pip install nonebot-plugin-dice
+pip install git+https://github.com/Langzaigg/nonebot-plugin-dice.git
 ```
 
-或在 `pyproject.toml` / `requirements.txt` 中加入：
+或者把仓库克隆下来，将 `nonebot_plugin_dice/` 目录整个拷进 bot 的插件目录：
+
+```bash
+git clone https://github.com/Langzaigg/nonebot-plugin-dice.git
+```
+
+若用 `requirements.txt` 固定来源，写成：
 
 ```text
-nonebot-plugin-dice
+nonebot-plugin-dice @ git+https://github.com/Langzaigg/nonebot-plugin-dice.git
 ```
 
 需要 Python 3.9+、NoneBot2、OneBot v11 适配器（如 `nonebot-adapter-onebot`）。
