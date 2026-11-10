@@ -28,7 +28,7 @@ CONFIG_HEADER = """# Dice! 本地配置（替代原 WebUI 管理面板）
 # 本文件在启动时读取一次；改完生效需执行 .system load（无需重启）。
 #
 # self_name          骰娘自称，留空则用 bot 昵称
-# master             Master 的 QQ（仅用于展示；本移植版不做权限控制）
+# master             Master 的 QQ（仅用于文案展示；0 则取 NoneBot 的 SUPERUSERS）
 # default_coc_rule   默认 COC 房规 0-7
 # disabled_global    全局静默（仅 .bot 仍可查看版本；关闭需改本文件）
 # disabled_draw      全局禁用 .draw

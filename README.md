@@ -98,7 +98,7 @@ plugins = ["nonebot_plugin_dice"]
 
 | 配置项 | 默认 | 说明 |
 | --- | --- | --- |
-| `DICE_SELF_NAME` | 空 | 骰娘自称，空则取 bot 昵称 |
+| `DICE_SELF_NAME` | 空 | 骰娘自称；空则依次取 `NICKNAME`、兜底「骰娘」 |
 | `DICE_MAID_QQ` | 0 | 骰娘 QQ，用于 `.jrrp` / `.rules` 接口，空则取事件 `self_id` |
 | `DICE_PREFIX` | `[".", "!", "。", "！", "．"]` | 触发前缀 |
 | `DICE_LISTEN_AT` | `true` | 是否响应 @ 骰娘 的消息 |
@@ -109,7 +109,7 @@ plugins = ["nonebot_plugin_dice"]
 
 ```yaml
 self_name: ""          # 骰娘自称，空则用 bot 昵称
-master: 0              # Master QQ（仅用于文本展示）
+master: 0              # Master QQ（仅文本展示；0 则取 SUPERUSERS）
 default_coc_rule: 0    # 默认 COC 房规 0-7
 disabled_global: false # 全局静默（仅 .bot 可查版本，关闭需改本文件）
 disabled_draw: false   # 全局禁用 .draw

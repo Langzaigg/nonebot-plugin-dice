@@ -40,6 +40,11 @@ AT_RE = re.compile("\x02at:([^\x02]*)\x02")
 
 
 def _self_name() -> str:
+    """骰娘自称：config.yml → DICE_SELF_NAME → NoneBot 的 NICKNAME → 兜底。
+
+    不写死名字。NoneBot 把 `NICKNAME` 解析成 **set**（无顺序），所以这里按名字排序取
+    第一个，多个昵称时结果稳定。
+    """
     from .settings import settings
     if settings.self_name:
         return settings.self_name
@@ -47,11 +52,14 @@ def _self_name() -> str:
         return plugin_config.dice_self_name
     try:
         from nonebot import get_driver
-        nickname = getattr(get_driver().config, "nickname", None)
-        if isinstance(nickname, (list, tuple)) and nickname:
-            return str(nickname[0])
-        if isinstance(nickname, str) and nickname:
-            return nickname
+        raw = getattr(get_driver().config, "nickname", None)
+        if isinstance(raw, str):
+            if raw:
+                return raw
+        elif raw:
+            names = sorted(str(n) for n in raw if str(n))
+            if names:
+                return names[0]
     except Exception:
         pass
     return "骰娘"
@@ -244,7 +252,9 @@ async def _handle(bot: Bot, event: MessageEvent):
         is_master=uid in _superusers(),
     )
     e.ctx["nick"] = e.nick
-    e.ctx["master"] = settings.master
+    # 展示用的 Master：config.yml 指定优先，留空则取 NoneBot 的 SUPERUSERS
+    masters = sorted(_superusers())
+    e.ctx["master"] = settings.master or (masters[0] if masters else 0)
 
     # 全局静默：只有 .bot 仍可查看状态（开关本身在 config.yml 里）
     if settings.disabled_global and not e.msg.lower().startswith(".bot"):
